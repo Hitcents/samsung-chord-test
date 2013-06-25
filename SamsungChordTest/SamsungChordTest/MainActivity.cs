@@ -41,70 +41,74 @@ namespace SamsungChordTest
             var text = FindViewById<EditText>(Resource.Id.sendText);
 
             host.Click += (sender, e) =>
-                {
-                    _progress = ProgressSpinner.Show(this, null, null, true, false);
+            {
+                _progress = ProgressSpinner.Show(this, null, null, true, false);
 
-                    _service.Host(new MultiplayerGame
+                _service.Host(new MultiplayerGame
+                    {
+                        Id = "Test",
+                        Name = "Test",
+                    })
+                    .ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
                         {
-                            Id = "Test",
-                            Name = "Test",
-                        })
-                        .ContinueWith(t =>
+                            ShowPopUp("Error", t.Exception.InnerExceptions.First().Message);
+                        }
+                        else
                         {
-                            if (t.IsFaulted)
-                            {
-                                Console.Write(t.Exception);
-                                ShowPopUp("Error", t.Exception.Message);
-                            }
-                            else
-                            {
-                                ShowPopUp("Success", "You have hosted a game.");
-                            }
+                            ShowPopUp("Success", "You have hosted a game.");
+                        }
 
-                        }, context);
-                };
+                    }, context);
+            };
 
             connect.Click += (sender, e) =>
-                {
-                    _progress = ProgressSpinner.Show(this, null, null, true, false);
-                    _service.FindGames()
-                        .ContinueWith(t =>
+            {
+                _progress = ProgressSpinner.Show(this, null, null, true, false);
+                _service.FindGames()
+                    .ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
                         {
-                            AlertDialog dialog = null;
-                            var games = t.Result.Select(g => g.Name).ToArray();
-                            var builder = new AlertDialog.Builder(this);
-                            builder.SetTitle("Select Connection");
-                            builder.SetSingleChoiceItems(games, -1, (s, o) =>
+                            ShowPopUp("Error", t.Exception.InnerExceptions.First().Message);
+                            return;
+                        }
+
+                        AlertDialog dialog = null;
+                        var games = t.Result.Select(g => g.Name).ToArray();
+                        var builder = new AlertDialog.Builder(this);
+                        builder.SetTitle("Select Connection");
+                        builder.SetSingleChoiceItems(games, -1, (s, o) =>
+                        {
+                            var game = t.Result.ElementAtOrDefault(o.Which);
+                            if (game != null)
                             {
-                                var game = t.Result.ElementAtOrDefault(o.Which);
-                                if (game != null)
-                                {
-                                    _progress = ProgressSpinner.Show(this, null, null, true, false);
-                                    dialog.Dismiss();
-                                    _service.Join(game).ContinueWith(c =>
+                                _progress = ProgressSpinner.Show(this, null, null, true, false);
+                                dialog.Dismiss();
+                                _service.Join(game).ContinueWith(c =>
+                                    {
+                                        if (c.IsFaulted)
                                         {
-                                            if (c.IsFaulted)
-                                            {
-                                                Console.Write(c.Exception);
-                                                ShowPopUp("Error", c.Exception.Message);
-                                            }
-                                            else
-                                            {
-                                                ShowPopUp("Success", "You have connected to the game.");
-                                            }
-                                        }, context);
-                                }
-                            });
-                            dialog = builder.Create();
-                            dialog.Show();
-                            _progress.Dismiss();
-                        }, context);
-                };
+                                            ShowPopUp("Error", c.Exception.InnerExceptions.First().Message);
+                                        }
+                                        else
+                                        {
+                                            ShowPopUp("Success", "You have connected to the game.");
+                                        }
+                                    }, context);
+                            }
+                        });
+                        dialog = builder.Create();
+                        dialog.Show();
+                        _progress.Dismiss();
+                    }, context);
+            };
         }
 
         private void ShowPopUp(string title, string message)
         {
-            if(_progress != null && _progress.IsShowing)
+            if (_progress != null && _progress.IsShowing)
             {
                 _progress.Dismiss();
             }

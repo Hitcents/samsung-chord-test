@@ -145,8 +145,12 @@ namespace SamsungChordTest
 
             _startSource = new TaskCompletionSource<bool>();
 
-            var types = _manager.AvailableInterfaceTypes;
-            int result = _manager.Start(types.First().IntValue(), this);
+            foreach (var type in _manager.AvailableInterfaceTypes)
+            {
+                Console.WriteLine("Type: " + type);
+            }
+
+            int result = _manager.Start(ChordManager.InterfaceTypeWifi, this);
             if (result != ChordManager.ErrorNone)
             {
                 _startSource.SetException(result.ToException());
