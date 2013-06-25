@@ -10,10 +10,8 @@ using Android.OS;
 namespace SamsungChordTest
 {
     [Activity(Label = "SamsungChordTest", MainLauncher = true, Icon = "@drawable/icon")]
-    public class Activity1 : Activity
+    public class MainActivity : Activity
     {
-        int count = 1;
-
         protected override void OnCreate(Bundle bundle)
         {
             base.OnCreate(bundle);
@@ -21,11 +19,13 @@ namespace SamsungChordTest
             // Set our view from the "main" layout resource
             SetContentView(Resource.Layout.Main);
 
-            // Get our button from the layout resource,
-            // and attach an event to it
-            Button button = FindViewById<Button>(Resource.Id.MyButton);
+            var send = FindViewById<Button>(Resource.Id.Send);
+            var host = FindViewById<Button>(Resource.Id.Host);
+            var connect = FindViewById<Button>(Resource.Id.Connect);
 
-            button.Click += delegate { button.Text = string.Format("{0} clicks!", count++); };
+            var listView = FindViewById<Button>(Resource.Id.dataList);
+
+            var text = FindViewById<EditText>(Resource.Id.sendText);
         }
     }
 }
