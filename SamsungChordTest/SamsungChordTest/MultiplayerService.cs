@@ -3,14 +3,21 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Runtime.Serialization;
 
 namespace SamsungChordTest
 {
+    [DataContract]
     public class MultiplayerGame
     {
+        [DataMember]
         public string Id { get; set; }
 
+        [DataMember]
         public string Name { get; set; }
+
+        [DataMember]
+        public bool Started { get; set; }
     }
 
     public class MessageEventArgs
@@ -27,8 +34,18 @@ namespace SamsungChordTest
     }
 
     public class MultiplayerService
+
+#if ANDROID
+        : Java.Lang.Object
+#endif
+
     {
         public event EventHandler<MessageEventArgs> Received = delegate { };
+
+        public virtual bool Supported
+        {
+            get { return true; }
+        }
 
         /// <summary>
         /// Hosts a new game
@@ -41,7 +58,7 @@ namespace SamsungChordTest
         /// <summary>
         /// Connects to an existing game
         /// </summary>
-        public virtual Task Connect(MultiplayerGame game)
+        public virtual Task Join(MultiplayerGame game)
         {
             return Task.Delay(1000);
         }

@@ -20,7 +20,7 @@ namespace SamsungChordTest
 
         public MainActivity()
         {
-            _service = new MultiplayerService();
+            _service = new SamsungMultiplayerService(this);
         }
 
         protected override void OnCreate(Bundle bundle)
@@ -40,6 +40,30 @@ namespace SamsungChordTest
 
             var text = FindViewById<EditText>(Resource.Id.sendText);
 
+            host.Click += (sender, e) =>
+                {
+                    _progress = ProgressSpinner.Show(this, null, null, true, false);
+
+                    _service.Host(new MultiplayerGame
+                        {
+                            Id = "Test",
+                            Name = "Test",
+                        })
+                        .ContinueWith(t =>
+                        {
+                            if (t.IsFaulted)
+                            {
+                                Console.Write(t.Exception);
+                                ShowPopUp("Error", t.Exception.Message);
+                            }
+                            else
+                            {
+                                ShowPopUp("Success", "You have hosted a game.");
+                            }
+
+                        }, context);
+                };
+
             connect.Click += (sender, e) =>
                 {
                     _progress = ProgressSpinner.Show(this, null, null, true, false);
@@ -57,7 +81,7 @@ namespace SamsungChordTest
                                 {
                                     _progress = ProgressSpinner.Show(this, null, null, true, false);
                                     dialog.Dismiss();
-                                    _service.Connect(game).ContinueWith(c =>
+                                    _service.Join(game).ContinueWith(c =>
                                         {
                                             if (c.IsFaulted)
                                             {
