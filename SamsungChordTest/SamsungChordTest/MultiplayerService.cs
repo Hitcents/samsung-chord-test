@@ -13,7 +13,7 @@ namespace SamsungChordTest
         public string Name { get; set; }
     }
 
-    public class MessageEventArgs
+    public class MessageEventArgs : EventArgs
     {
         public object Message { get; set; }
 
