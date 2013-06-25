@@ -244,11 +244,13 @@ namespace SamsungChordTest
 
         #region ChordChannel Listener
 
-        public void OnDataReceived(string fromNode, string fromChannel, string payloadType, byte[][] payload)
+        public void OnDataReceived(string fromNode, string fromChannel, string payloadType, IntPtr payload)
         {
             if (fromChannel == ChordManager.PublicChannel)
             {
-                var message = payload.ToMessage<PublicMessage>();
+                var array = JNIEnv.GetArray<byte[]>(payload);
+
+                var message = array.ToMessage<PublicMessage>();
                 switch (message.Type)
                 {
                     case MessageType.ListGames:
