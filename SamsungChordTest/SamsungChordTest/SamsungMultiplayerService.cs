@@ -74,23 +74,23 @@ namespace SamsungChordTest
         private MultiplayerGame _game;
         private object _lock = new object();
 
-        private enum MessageType
+        private static class MessageType
         {
             /// <summary>
             /// Message asking if anyone has a game on the public channel
             /// </summary>
-            ListGames,
+            public const string ListGames = "L";
             /// <summary>
             /// Message responding with a game on the public channel
             /// </summary>
-            Game,
+            public const string Game = "G";
         }
 
         [DataContract]
         private class PublicMessage
         {
             [DataMember]
-            public MessageType Type { get; set; }
+            public string Type { get; set; }
 
             [DataMember]
             public MultiplayerGame Game { get; set; }
@@ -185,7 +185,7 @@ namespace SamsungChordTest
                     return t;
                 }
 
-                _publicChannel.SendDataToAll(ChordManager.PublicChannel, new PublicMessage
+                _publicChannel.SendDataToAll(MessageType.ListGames, new PublicMessage
                 {
                     Type = MessageType.ListGames,
 
@@ -249,14 +249,14 @@ namespace SamsungChordTest
             if (fromChannel == ChordManager.PublicChannel)
             {
                 var array = JNIEnv.GetArray<byte[]>(payload);
-
                 var message = array.ToMessage<PublicMessage>();
-                switch (message.Type)
+
+                switch (payloadType)
                 {
                     case MessageType.ListGames:
                         if (_game != null && !_game.Started)
                         {
-                            _publicChannel.SendData(fromChannel, fromNode, new PublicMessage
+                            _publicChannel.SendData(fromNode, MessageType.Game, new PublicMessage
                             {
                                 Type = MessageType.Game,
                                 Game = _game,
