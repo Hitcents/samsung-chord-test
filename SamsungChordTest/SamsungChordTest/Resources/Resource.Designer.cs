@@ -60,26 +60,23 @@ namespace SamsungChordTest
 		public partial class Id
 		{
 			
-			// aapt resource value: 0x7f060003
-			public const int Connect = 2131099651;
-			
 			// aapt resource value: 0x7f060002
-			public const int Host = 2131099650;
-			
-			// aapt resource value: 0x7f060005
-			public const int Send = 2131099653;
-			
-			// aapt resource value: 0x7f060006
-			public const int dataList = 2131099654;
-			
-			// aapt resource value: 0x7f060004
-			public const int sendText = 2131099652;
-			
-			// aapt resource value: 0x7f060000
-			public const int textHeader = 2131099648;
+			public const int Connect = 2131099650;
 			
 			// aapt resource value: 0x7f060001
-			public const int textInformation = 2131099649;
+			public const int Host = 2131099649;
+			
+			// aapt resource value: 0x7f060004
+			public const int Send = 2131099652;
+			
+			// aapt resource value: 0x7f060005
+			public const int dataList = 2131099653;
+			
+			// aapt resource value: 0x7f060003
+			public const int sendText = 2131099651;
+			
+			// aapt resource value: 0x7f060000
+			public const int textRow = 2131099648;
 			
 			static Id()
 			{

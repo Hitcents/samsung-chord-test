@@ -1,17 +1,25 @@
 ﻿using System;
 using System.Linq;
-
+using System.Runtime.Serialization;
+using System.Threading.Tasks;
 using Android.App;
 using Android.Content;
+using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
-using Android.OS;
-using System.Threading.Tasks;
 using SamsungChordTest.Controls;
+using System.Collections.Generic;
 
 namespace SamsungChordTest
 {
+    [DataContract]
+    public class TestMessage
+    {
+        [DataMember]
+        public string Text { get; set; }
+    }
+
     [Activity(Label = "SamsungChordTest", MainLauncher = true, Icon = "@drawable/icon")]
     public class MainActivity : Activity
     {
@@ -20,7 +28,13 @@ namespace SamsungChordTest
 
         public MainActivity()
         {
-            _service = new SamsungMultiplayerService(this);
+            _service = new SamsungMultiplayerService(this)
+            {
+                MessageTypes = new Dictionary<string, Type>
+                {
+                    { "T", typeof(TestMessage) },
+                },
+            };
         }
 
         protected override void OnCreate(Bundle bundle)
@@ -35,32 +49,31 @@ namespace SamsungChordTest
             var send = FindViewById<Button>(Resource.Id.Send);
             var host = FindViewById<Button>(Resource.Id.Host);
             var connect = FindViewById<Button>(Resource.Id.Connect);
-
             var listView = FindViewById<ListView>(Resource.Id.dataList);
-
             var text = FindViewById<EditText>(Resource.Id.sendText);
+            var adapter = new MessageAdapter();
+            listView.Adapter = adapter;
 
             host.Click += (sender, e) =>
             {
                 _progress = ProgressSpinner.Show(this, null, null, true, false);
 
                 _service.Host(new MultiplayerGame
+                {
+                    Name = Build.Manufacturer.Trim() + " " + Build.Model.Trim(),
+                })
+                .ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
                     {
-                        Id = "Test",
-                        Name = "Test",
-                    })
-                    .ContinueWith(t =>
+                        ShowPopUp("Error", t.Exception.InnerExceptions.First().Message);
+                    }
+                    else
                     {
-                        if (t.IsFaulted)
-                        {
-                            ShowPopUp("Error", t.Exception.InnerExceptions.First().Message);
-                        }
-                        else
-                        {
-                            ShowPopUp("Success", "You have hosted a game.");
-                        }
+                        ShowPopUp("Success", "You have hosted a game.");
+                    }
 
-                    }, context);
+                }, context);
             };
 
             connect.Click += (sender, e) =>
@@ -87,22 +100,47 @@ namespace SamsungChordTest
                                 _progress = ProgressSpinner.Show(this, null, null, true, false);
                                 dialog.Dismiss();
                                 _service.Join(game).ContinueWith(c =>
+                                {
+                                    if (c.IsFaulted)
                                     {
-                                        if (c.IsFaulted)
-                                        {
-                                            ShowPopUp("Error", c.Exception.InnerExceptions.First().Message);
-                                        }
-                                        else
-                                        {
-                                            ShowPopUp("Success", "You have connected to the game.");
-                                        }
-                                    }, context);
+                                        ShowPopUp("Error", c.Exception.InnerExceptions.First().Message);
+                                    }
+                                    else
+                                    {
+                                        ShowPopUp("Success", "You have connected to the game.");
+                                    }
+                                }, context);
                             }
                         });
                         dialog = builder.Create();
                         dialog.Show();
                         _progress.Dismiss();
                     }, context);
+            };
+
+            send.Click += (sender, e) =>
+            {
+                var message = new TestMessage { Text = text.Text };
+
+                _service.Send("T", message).ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                    {
+                        ShowPopUp("Error", t.Exception.InnerExceptions.First().Message);
+                        return;
+                    }
+
+                    adapter.Logs.Add("SENT: " + message.Text);
+                    adapter.NotifyDataSetChanged();
+
+                }, context);
+            };
+
+            _service.Received += (sender, e) =>
+            {
+                var message = e.Message as TestMessage;
+                adapter.Logs.Add("RECEIVED: " + message.Text);
+                adapter.NotifyDataSetChanged();
             };
         }
 

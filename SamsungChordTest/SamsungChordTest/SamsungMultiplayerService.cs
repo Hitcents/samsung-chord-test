@@ -48,6 +48,12 @@ namespace SamsungChordTest
             return JsonConvert.DeserializeObject<T>(data);
         }
 
+        public static object ToMessage(this byte[][] payload, Type type)
+        {
+            string data = SamsungMultiplayerService.Encoding.GetString(payload[0]);
+            return JsonConvert.DeserializeObject(data, type);
+        }
+
         public static byte[][] ToPayload(this object message)
         {
             string data = JsonConvert.SerializeObject(message);
@@ -65,11 +71,11 @@ namespace SamsungChordTest
         public const int FindGamesTimeout = 1000;
         public static readonly Encoding Encoding = Encoding.UTF8;
 
-        private readonly Context _context;
+        private readonly Activity _activity;
+        private readonly List<MultiplayerGame> _games = new List<MultiplayerGame>();
         private ChordManager _manager;
         private IChordChannel _publicChannel;
         private IChordChannel _channel;
-        private List<MultiplayerGame> _games = new List<MultiplayerGame>();
         private TaskCompletionSource<bool> _startSource;
         private MultiplayerGame _game;
         private object _lock = new object();
@@ -96,12 +102,14 @@ namespace SamsungChordTest
             public MultiplayerGame Game { get; set; }
         }
 
-        public SamsungMultiplayerService(Context context)
+        public SamsungMultiplayerService(Activity activity)
         {
-            _context = context;
+            _activity = activity;
         }
 
         public bool Started { get; set; }
+
+        public Dictionary<string, Type> MessageTypes { get; set; }
 
         public override bool Supported
         {
@@ -117,7 +125,7 @@ namespace SamsungChordTest
 
                 try
                 {
-                    _manager = ChordManager.GetInstance(_context);
+                    _manager = ChordManager.GetInstance(_activity);
 
                     return true;
                 }
@@ -138,17 +146,12 @@ namespace SamsungChordTest
             }
 
             if (_manager == null)
-                _manager = ChordManager.GetInstance(_context);
+                _manager = ChordManager.GetInstance(_activity);
 
             _manager.SetTempDirectory(Path.Combine(Path.GetTempPath(), "Chord"));
             _manager.SetHandleEventLooper(Looper.MainLooper);
 
             _startSource = new TaskCompletionSource<bool>();
-
-            foreach (var type in _manager.AvailableInterfaceTypes)
-            {
-                Console.WriteLine("Type: " + type);
-            }
 
             int result = _manager.Start(ChordManager.InterfaceTypeWifi, this);
             if (result != ChordManager.ErrorNone)
@@ -161,6 +164,8 @@ namespace SamsungChordTest
 
         public override Task Host(MultiplayerGame game)
         {
+            game.Id = Guid.NewGuid().ToString("N");
+
             return Start().ContinueWith(t =>
             {
                 if (t.IsFaulted)
@@ -178,7 +183,7 @@ namespace SamsungChordTest
             return Start().ContinueWith(t =>
             {
                 lock (_lock)
-                    _games = new List<MultiplayerGame>();
+                    _games.Clear();
 
                 if (t.IsFaulted)
                 {
@@ -207,9 +212,25 @@ namespace SamsungChordTest
 
         public override Task Join(MultiplayerGame game)
         {
+            return Task.Factory.StartNew(() =>
+            {
+                _channel = _manager.JoinChannel(game.Id, this);
+                _game = game;
+            });
+        }
 
+        public override Task Send(string messageId, object message)
+        {
+            return Task.Factory.StartNew(() =>
+            {
+                if (_channel == null)
+                    throw new InvalidOperationException("Game has not joined a private channel!");
 
-            return base.Join(game);
+                if (_game == null || !_game.Started)
+                    throw new InvalidOperationException("The game has not been started!");
+
+                _channel.SendData(_game.OpponentId, messageId, message.ToPayload());
+            });
         }
 
         #region ChordManager Listener
@@ -233,8 +254,8 @@ namespace SamsungChordTest
         {
             if (_startSource != null)
             {
-                Started = true;
                 _publicChannel = _manager.JoinChannel(ChordManager.PublicChannel, this);
+                Started = true;
                 _startSource.SetResult(true);
                 _startSource = null;
             }
@@ -246,35 +267,67 @@ namespace SamsungChordTest
 
         public void OnDataReceived(string fromNode, string fromChannel, string payloadType, IntPtr payload)
         {
-            if (fromChannel == ChordManager.PublicChannel)
+            try
             {
                 var array = JNIEnv.GetArray<byte[]>(payload);
-                var message = array.ToMessage<PublicMessage>();
 
-                switch (payloadType)
+                //Public channel
+                if (fromChannel == ChordManager.PublicChannel)
                 {
-                    case MessageType.ListGames:
-                        if (_game != null && !_game.Started)
-                        {
-                            _publicChannel.SendData(fromNode, MessageType.Game, new PublicMessage
-                            {
-                                Type = MessageType.Game,
-                                Game = _game,
+                    var message = array.ToMessage<PublicMessage>();
 
-                            }.ToPayload());
+                    switch (payloadType)
+                    {
+                        case MessageType.ListGames:
+                            if (_game != null && !_game.Started)
+                            {
+                                _publicChannel.SendData(fromNode, MessageType.Game, new PublicMessage
+                                {
+                                    Type = MessageType.Game,
+                                    Game = new MultiplayerGame
+                                    {
+                                        Id = _game.Id,
+                                        Name = _game.Name,
+                                        OpponentId = _manager.Name,
+                                    },
+
+                                }.ToPayload());
+                            }
+                            break;
+                        case MessageType.Game:
+                            lock (_lock)
+                                _games.Add(message.Game);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                //Our private channel
+                else if (_channel != null && _channel.Name == fromChannel)
+                {
+                    if (MessageTypes == null)
+                    {
+                        Console.WriteLine("MessageTypes is null!");
+                    }
+                    else
+                    {
+                        Type messageType;
+                        if (MessageTypes.TryGetValue(payloadType, out messageType))
+                        {
+                            var message = array.ToMessage(messageType);
+
+                            _activity.RunOnUiThread(() => OnReceived(message));
                         }
-                        break;
-                    case MessageType.Game:
-                        lock (_lock)
-                            _games.Add(message.Game);
-                        break;
-                    default:
-                        break;
+                        else
+                        {
+                            Console.WriteLine("No message type found for: " + messageType);
+                        }
+                    }
                 }
             }
-            else
+            finally
             {
-
+                JNIEnv.DeleteLocalRef(payload);
             }
         }
 
@@ -310,7 +363,11 @@ namespace SamsungChordTest
 
         public void OnNodeJoined(string fromNode, string fromChannel)
         {
-            
+            if (fromChannel != ChordManager.PublicChannel && _game != null)
+            {
+                _game.OpponentId = fromNode;
+                _game.Started = true;
+            }
         }
 
         public void OnNodeLeft(string fromNode, string fromChannel)

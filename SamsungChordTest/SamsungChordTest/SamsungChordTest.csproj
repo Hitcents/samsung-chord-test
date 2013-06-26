@@ -57,6 +57,7 @@
   <ItemGroup>
     <Compile Include="Controls\ProgressSpinner.cs" />
     <Compile Include="MainActivity.cs" />
+    <Compile Include="MessageAdapter.cs" />
     <Compile Include="MultiplayerService.cs" />
     <Compile Include="Resources\Resource.Designer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -65,7 +66,9 @@
   <ItemGroup>
     <None Include="Resources\AboutResources.txt" />
     <None Include="Assets\AboutAssets.txt" />
-    <AndroidResource Include="Resources\Layout\datalayout.axml" />
+    <AndroidResource Include="Resources\Layout\datalayout.axml">
+      <SubType>Designer</SubType>
+    </AndroidResource>
   </ItemGroup>
   <ItemGroup>
     <AndroidResource Include="Resources\Layout\Main.axml" />
