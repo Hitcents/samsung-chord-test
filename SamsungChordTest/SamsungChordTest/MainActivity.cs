@@ -144,6 +144,13 @@ namespace SamsungChordTest
             };
         }
 
+        protected override void OnStop()
+        {
+            base.OnStop();
+
+            _service.Stop();
+        }
+
         private void ShowPopUp(string title, string message)
         {
             if (_progress != null && _progress.IsShowing)

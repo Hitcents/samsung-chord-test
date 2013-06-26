@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using Android.App;
@@ -12,7 +13,6 @@ using Android.Views;
 using Android.Widget;
 using Newtonsoft.Json;
 using SamsungChord;
-using System.Runtime.Serialization;
 
 namespace SamsungChordTest
 {
@@ -182,13 +182,13 @@ namespace SamsungChordTest
         {
             return Start().ContinueWith(t =>
             {
-                lock (_lock)
-                    _games.Clear();
-
                 if (t.IsFaulted)
                 {
                     return t;
                 }
+
+                lock (_lock)
+                    _games.Clear();
 
                 _publicChannel.SendDataToAll(MessageType.ListGames, new PublicMessage
                 {
@@ -214,6 +214,11 @@ namespace SamsungChordTest
         {
             return Task.Factory.StartNew(() =>
             {
+                if (!Started)
+                {
+                    throw new InvalidOperationException("Chord is not started!");
+                }
+
                 _channel = _manager.JoinChannel(game.Id, this);
                 _game = game;
             });
@@ -231,6 +236,28 @@ namespace SamsungChordTest
 
                 _channel.SendData(_game.OpponentId, messageId, message.ToPayload());
             });
+        }
+
+        public override void Stop()
+        {
+            if (_manager != null)
+            {
+                _manager.Stop();
+                if (_publicChannel != null)
+                {
+                    _manager.LeaveChannel(_publicChannel.Name);
+                    _publicChannel.Dispose();
+                    _publicChannel = null;
+                }
+                if (_channel != null)
+                {
+                    _manager.LeaveChannel(_channel.Name);
+                    _channel.Dispose();
+                    _channel = null;
+                }
+                _game = null;
+                Started = false;
+            }
         }
 
         #region ChordManager Listener
@@ -252,13 +279,18 @@ namespace SamsungChordTest
 
         public void OnStarted(string name, int reason)
         {
-            if (_startSource != null)
+            _publicChannel = _manager.JoinChannel(ChordManager.PublicChannel, this);
+
+            //I have no idea why we need a delay here, but the first request fails otherwise
+            Task.Delay(3000).ContinueWith(t =>
             {
-                _publicChannel = _manager.JoinChannel(ChordManager.PublicChannel, this);
-                Started = true;
-                _startSource.SetResult(true);
-                _startSource = null;
-            }
+                if (_startSource != null)
+                {
+                    Started = true;
+                    _startSource.SetResult(true);
+                    _startSource = null;
+                }
+            });
         }
 
         #endregion
@@ -363,7 +395,7 @@ namespace SamsungChordTest
 
         public void OnNodeJoined(string fromNode, string fromChannel)
         {
-            if (fromChannel != ChordManager.PublicChannel && _game != null)
+            if (fromChannel != ChordManager.PublicChannel && _game != null && _game.Id == fromChannel)
             {
                 _game.OpponentId = fromNode;
                 _game.Started = true;

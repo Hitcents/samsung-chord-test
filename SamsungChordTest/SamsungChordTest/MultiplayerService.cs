@@ -115,6 +115,14 @@ namespace SamsungChordTest
             return Task.Delay(1000);
         }
 
+        /// <summary>
+        /// This needs to be called if the user quits or the app is backgrounded
+        /// </summary>
+        public virtual void Stop()
+        {
+            //Do nothing
+        }
+
         protected virtual void OnReceived(object message)
         {
             Received(this, new MessageEventArgs { Message = message });
