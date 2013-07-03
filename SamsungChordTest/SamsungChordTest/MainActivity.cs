@@ -18,6 +18,44 @@ namespace SamsungChordTest
     {
         [DataMember]
         public string Text { get; set; }
+
+        /// <summary>
+        /// The opponent's id for identifying them over multiplayer
+        /// </summary>
+        [DataMember]
+        public string OpponentId { get; set; }
+
+        /// <summary>
+        /// Node for echo to respond to
+        /// </summary>
+        [DataMember]
+        public string SenderNode { get; set; }
+
+        /// <summary>
+        /// Timestamp for calcualating latency
+        /// </summary>
+        [DataMember]
+        public DateTime TimeStamp { get; set; }
+
+        [DataMember]
+        public bool ShouldEcho { get; set; }
+
+        public double RoundTripMillis
+        {
+            get
+            {
+                return DateTime.Now.Subtract(TimeStamp).TotalMilliseconds;
+            }
+        }
+
+        public double Latency
+        {
+            get
+            {
+                return DateTime.Now.Subtract(TimeStamp).TotalMilliseconds / 2;
+            }
+        }
+
     }
 
     [Activity(Label = "SamsungChordTest", MainLauncher = true, Icon = "@drawable/icon")]
@@ -120,7 +158,12 @@ namespace SamsungChordTest
 
             send.Click += (sender, e) =>
             {
-                var message = new TestMessage { Text = text.Text };
+                var message = new TestMessage
+                {
+                    Text = text.Text,
+                    ShouldEcho = true,
+                    TimeStamp = DateTime.Now
+                };
 
                 _service.Send("T", message).ContinueWith(t =>
                 {
@@ -130,17 +173,24 @@ namespace SamsungChordTest
                         return;
                     }
 
-                    adapter.Logs.Add("SENT: " + message.Text);
-                    adapter.NotifyDataSetChanged();
-
                 }, context);
             };
 
             _service.Received += (sender, e) =>
             {
                 var message = e.Message as TestMessage;
-                adapter.Logs.Add("RECEIVED: " + message.Text);
-                adapter.NotifyDataSetChanged();
+                if (message.ShouldEcho)
+                {
+                    adapter.Logs.Add("RECEIVED: " + message.Text);
+                    adapter.NotifyDataSetChanged();
+                    message.ShouldEcho = false;
+                    _service.Send("T", message);
+                }
+                
+                else
+                {
+                    adapter.Logs.Add("Send: " + message.Text + " Latency: " + message.RoundTripMillis);
+                }
             };
         }
 

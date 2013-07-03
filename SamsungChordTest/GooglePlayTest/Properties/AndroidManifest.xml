@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.hitcents.battlepillars">
+	<uses-sdk android:minSdkVersion="8" android:targetSdkVersion="15" />
+	<application>
+    <meta-data android:name="com.google.android.gms.games.APP_ID" android:value="@string/app_id" />
+  </application>
+</manifest>

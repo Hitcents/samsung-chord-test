@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+    <com.google.android.gms.common.SignInButton
+        android:id="@+id/SignInButton"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content" />
+    <Button
+        android:id="@+id/SignOutButton"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Sign Out"
+        android:visibility="gone" />
+    <TextView
+        android:id="@+id/Debug"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Not signed in" />
+</LinearLayout>

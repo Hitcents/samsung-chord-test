@@ -33,6 +33,7 @@ namespace SamsungChordTest
         /// </summary>
         [DataMember]
         public string OpponentId { get; set; }
+        
     }
 
     public class MessageEventArgs

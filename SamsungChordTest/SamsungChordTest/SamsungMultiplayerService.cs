@@ -13,6 +13,7 @@ using Android.Views;
 using Android.Widget;
 using Newtonsoft.Json;
 using SamsungChord;
+using SamsungChordTest;
 
 namespace SamsungChordTest
 {
@@ -175,6 +176,7 @@ namespace SamsungChordTest
 
                 _game = game;
                 _channel = _manager.JoinChannel(game.Id, this);
+
             });
         }
 
@@ -234,6 +236,7 @@ namespace SamsungChordTest
                 if (_game == null || !_game.Started)
                     throw new InvalidOperationException("The game has not been started!");
 
+                
                 _channel.SendData(_game.OpponentId, messageId, message.ToPayload());
             });
         }
@@ -299,68 +302,70 @@ namespace SamsungChordTest
 
         public void OnDataReceived(string fromNode, string fromChannel, string payloadType, IntPtr payload)
         {
-            try
+            var array = JNIEnv.GetArray<byte[]>(payload);
+
+            //Public channel
+            if (fromChannel == ChordManager.PublicChannel)
             {
-                var array = JNIEnv.GetArray<byte[]>(payload);
+                var message = array.ToMessage<PublicMessage>();
+                //var message = payload.ToMessage<PublicMessage>();
 
-                //Public channel
-                if (fromChannel == ChordManager.PublicChannel)
+                switch (payloadType)
                 {
-                    var message = array.ToMessage<PublicMessage>();
-
-                    switch (payloadType)
-                    {
-                        case MessageType.ListGames:
-                            if (_game != null && !_game.Started)
+                    case MessageType.ListGames:
+                        if (_game != null && !_game.Started)
+                        {
+                            _publicChannel.SendData(fromNode, MessageType.Game, new PublicMessage
                             {
-                                _publicChannel.SendData(fromNode, MessageType.Game, new PublicMessage
+                                Type = MessageType.Game,
+                                Game = new MultiplayerGame
                                 {
-                                    Type = MessageType.Game,
-                                    Game = new MultiplayerGame
-                                    {
-                                        Id = _game.Id,
-                                        Name = _game.Name,
-                                        OpponentId = _manager.Name,
-                                    },
+                                    Id = _game.Id,
+                                    Name = _game.Name,
+                                    OpponentId = _manager.Name,
+                                },
 
-                                }.ToPayload());
-                            }
-                            break;
-                        case MessageType.Game:
-                            lock (_lock)
-                                _games.Add(message.Game);
-                            break;
-                        default:
-                            break;
-                    }
+                            }.ToPayload());
+                        }
+                        break;
+                    case MessageType.Game:
+                        lock (_lock)
+                            _games.Add(message.Game);
+                        break;
+                    default:
+                        break;
                 }
-                //Our private channel
-                else if (_channel != null && _channel.Name == fromChannel)
+            }
+            //Our private channel
+            else if (_channel != null && _channel.Name == fromChannel)
+            {
+                if (MessageTypes == null)
                 {
-                    if (MessageTypes == null)
+                    Console.WriteLine("MessageTypes is null!");
+                }
+                else
+                {
+                    Type messageType;
+                    if (MessageTypes.TryGetValue(payloadType, out messageType))
                     {
-                        Console.WriteLine("MessageTypes is null!");
+                        //var message = payload.ToMessage(messageType);
+                        var message = array.ToMessage(messageType);
+
+                        _activity.RunOnUiThread(() => OnReceived(message));
                     }
                     else
                     {
-                        Type messageType;
-                        if (MessageTypes.TryGetValue(payloadType, out messageType))
-                        {
-                            var message = array.ToMessage(messageType);
-
-                            _activity.RunOnUiThread(() => OnReceived(message));
-                        }
-                        else
-                        {
-                            Console.WriteLine("No message type found for: " + messageType);
-                        }
+                        Console.WriteLine("No message type found for: " + messageType);
                     }
                 }
+
             }
-            finally
-            {
-                JNIEnv.DeleteLocalRef(payload);
-            }
+
+            /*
+        finally
+        {
+            JNIEnv.DeleteLocalRef(payload);
+        }*/
         }
 
         public void OnFileChunkReceived(string fromNode, string fromChannel, string fileName, string hash, string fileType, string exchangeId, long fileSize, long offset)
